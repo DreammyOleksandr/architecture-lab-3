@@ -3,6 +3,7 @@ package painter
 import (
 	"golang.org/x/exp/shiny/screen"
 	"image"
+	"sync"
 )
 
 // Receiver отримує текстуру, яка була підготовлена в результаті виконання команд у циклі подій.
@@ -31,7 +32,6 @@ func (l *Loop) Start(s screen.Screen) {
 	l.prev, _ = s.NewTexture(size)
 
 	// TODO: стартувати цикл подій.
-
 	l.stop = make(chan struct{})
 	go func() {
 		for !l.stopReq || l.mq.empty() {
@@ -59,10 +59,44 @@ func (l *Loop) StopAndWait() {
 }
 
 // TODO: Реалізувати чергу подій.
-type messageQueue struct{}
+type messageQueue struct {
+	pushSignal chan struct{}
+	mu         sync.Mutex
+	data       []Operation
+}
 
-func (mq *messageQueue) push(op Operation) {}
+func (mq *messageQueue) push(op Operation) {
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
 
-func (mq *messageQueue) pull() Operation { return nil }
+	mq.data = append(mq.data, op)
 
-func (mq *messageQueue) empty() bool { return false }
+	if mq.pushSignal != nil {
+		close(mq.pushSignal)
+		mq.pushSignal = nil
+	}
+}
+
+func (mq *messageQueue) pull() Operation {
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+
+	for len(mq.data) == 0 {
+		mq.pushSignal = make(chan struct{})
+		mq.mu.Unlock()
+		<-mq.pushSignal
+		mq.mu.Lock()
+	}
+
+	res := mq.data[0]
+	mq.data[0] = nil
+	mq.data = mq.data[1:]
+	return res
+}
+
+func (mq *messageQueue) empty() bool {
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+
+	return len(mq.data) == 0
+}
