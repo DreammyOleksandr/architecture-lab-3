@@ -106,7 +106,6 @@ func detectTerminate(e any) bool {
 
 func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 	switch e := e.(type) {
-
 	case size.Event: // Оновлення даних про розмір вікна.
 		pw.sz = e
 
@@ -114,10 +113,12 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 		log.Printf("ERROR: %s", e)
 
 	case mouse.Event:
-		if t == nil {
-			// TODO: Реалізувати реакцію на натискання кнопки миші.
+		if t == nil && e.Button == mouse.ButtonRight && e.Direction == mouse.DirPress {
+			x, y := int(e.X), int(e.Y)
+			pw.w.Fill(pw.sz.Bounds(), color.Black, draw.Src)
+			pw.drawNewImage(x, y)
+			pw.w.Publish()
 		}
-
 	case paint.Event:
 		if t == nil {
 			pw.drawDefaultUI()
@@ -127,7 +128,6 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 		pw.w.Publish()
 	}
 }
-
 func (pw *Visualizer) drawDefaultUI() {
 	pw.w.Fill(pw.sz.Bounds(), color.Black, draw.Src) // Фон.
 
@@ -148,4 +148,20 @@ func (pw *Visualizer) drawDefaultUI() {
 	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
 		pw.w.Fill(br, color.White, draw.Src)
 	}
+}
+func (pw *Visualizer) drawNewImage(x, y int) {
+	crossSize := 400
+	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
+		pw.w.Fill(br, color.White, draw.Src)
+	}
+	pw.w.Fill(
+		image.Rect(x-crossSize/2, y-70, x+crossSize/2, y+70),
+		color.RGBA{B: 255, A: 255},
+		draw.Src,
+	)
+	pw.w.Fill(
+		image.Rect(x-70, y-crossSize/2, x+70, y+crossSize/2),
+		color.RGBA{B: 255, A: 255},
+		draw.Src,
+	)
 }
