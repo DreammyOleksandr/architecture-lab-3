@@ -88,8 +88,8 @@ type MoveOperation struct {
 
 func (op *MoveOperation) Do(t screen.Texture) bool {
 	for i := range op.ShapesArray {
-		op.ShapesArray[i].CenterCoordinates.X += op.X
-		op.ShapesArray[i].CenterCoordinates.Y += op.Y
+		op.ShapesArray[i].CenterCoordinates.X = op.X
+		op.ShapesArray[i].CenterCoordinates.Y = op.Y
 	}
 	return false
 }
