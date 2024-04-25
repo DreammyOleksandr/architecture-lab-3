@@ -77,6 +77,8 @@ func (p *Parser) parse(lines string) error {
 			return fmt.Errorf("'reset' instruction should have no other parameters")
 		}
 		p.texturestate.ResetStateAndBackground()
+	default:
+		return fmt.Errorf("command does not exist")
 	}
 
 	return nil
