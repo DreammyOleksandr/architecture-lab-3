@@ -13,29 +13,29 @@ type Texturestate struct {
 	updateOperation     painter.Operation
 }
 
-func (ts *Texturestate) GetOperations() []painter.Operation {
-	var ops []painter.Operation
+func (ts *Texturestate) GetOperationsList() []painter.Operation {
+	var operations []painter.Operation
 
 	if ts.backgroundColor != nil {
-		ops = append(ops, ts.backgroundColor)
+		operations = append(operations, ts.backgroundColor)
 	}
 	if ts.backgroundRectangle != nil {
-		ops = append(ops, ts.backgroundRectangle)
+		operations = append(operations, ts.backgroundRectangle)
 	}
 	if len(ts.moveOperations) != 0 {
-		ops = append(ops, ts.moveOperations...)
+		operations = append(operations, ts.moveOperations...)
 		ts.moveOperations = nil
 	}
 	if len(ts.shapesSlice) != 0 {
 		for _, shape := range ts.shapesSlice {
-			ops = append(ops, shape)
+			operations = append(operations, shape)
 		}
 	}
 	if ts.updateOperation != nil {
-		ops = append(ops, ts.updateOperation)
+		operations = append(operations, ts.updateOperation)
 	}
 
-	return ops
+	return operations
 }
 
 func (ts *Texturestate) GreenBackground() {
@@ -64,8 +64,8 @@ func (ts *Texturestate) Figure(centralPoint image.Point) {
 	ts.shapesSlice = append(ts.shapesSlice, &figure)
 }
 
-func (ts *Texturestate) MoveOperation(x int, y int) {
-	moveOp := painter.MoveOperation{X: x, Y: y, ShapesArray: ts.shapesSlice}
+func (ts *Texturestate) MoveOperation(newCoordinates image.Point) {
+	moveOp := painter.MoveOperation{X: newCoordinates.X, Y: newCoordinates.Y, ShapesArray: ts.shapesSlice}
 	ts.moveOperations = append(ts.moveOperations, &moveOp)
 }
 
@@ -76,6 +76,11 @@ func (ts *Texturestate) ResetOperations() {
 	if ts.updateOperation != nil {
 		ts.updateOperation = nil
 	}
+}
+
+func (ts *Texturestate) ResetStateAndBackground() {
+	ts.Reset()
+	ts.backgroundColor = painter.OperationFunc(painter.Reset)
 }
 
 func (ts *Texturestate) Reset() {
