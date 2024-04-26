@@ -56,11 +56,11 @@ type CrossShape struct {
 func (op CrossShape) Do(t screen.Texture) bool {
 	//TODO fix shape proportions
 	c := color.RGBA{B: 255, A: 255}
-	t.Fill(image.Rect(op.CenterCoordinates.X/2-100, op.CenterCoordinates.Y/2-35,
-		op.CenterCoordinates.X/2+100, op.CenterCoordinates.Y/2+35),
+	t.Fill(image.Rect(op.CenterCoordinates.X-200, op.CenterCoordinates.Y-70,
+		op.CenterCoordinates.X+200, op.CenterCoordinates.Y+70),
 		c, draw.Src)
-	t.Fill(image.Rect(op.CenterCoordinates.X/2-35, op.CenterCoordinates.Y/2-100,
-		op.CenterCoordinates.X/2+35, op.CenterCoordinates.Y/2+100),
+	t.Fill(image.Rect(op.CenterCoordinates.X-70, op.CenterCoordinates.Y-200,
+		op.CenterCoordinates.X+70, op.CenterCoordinates.Y+200),
 		c, draw.Src)
 	return false
 }
@@ -72,7 +72,7 @@ type BackgroundRectangle struct {
 
 func (op BackgroundRectangle) Do(t screen.Texture) bool {
 	c := color.Black
-	t.Fill(image.Rect(op.LeftTop.X/2, op.LeftTop.Y/2, op.RightBottom.X/2, op.RightBottom.Y/2), c, screen.Src)
+	t.Fill(image.Rect(op.LeftTop.X, op.LeftTop.Y, op.RightBottom.X, op.RightBottom.Y), c, screen.Src)
 	return false
 }
 
