@@ -1,106 +1,158 @@
 package painter
 
 import (
-	// "image"
-	// "image/color"
-	// "image/draw"
-	// "reflect"
-	// "testing"
-
-	// "golang.org/x/exp/shiny/screen"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/exp/shiny/screen"
+	"golang.org/x/image/draw"
+	"image"
+	"image/color"
+	"testing"
+	"time"
 )
 
-// func TestLoop_Post(t *testing.T) {
-// 	var (
-// 		l  Loop
-// 		tr testReceiver
-// 	)
-// 	l.Receiver = &tr
+type MockOperation struct {
+	mock.Mock
+}
 
-// 	var testOps []string
+func (mockOperation *MockOperation) Do(t screen.Texture) bool {
+	args := mockOperation.Called(t)
+	return args.Bool(0)
+}
 
-// 	l.Start(mockScreen{})
-// 	l.Post(logOp(t, "do white fill", WhiteFill))
-// 	l.Post(logOp(t, "do green fill", GreenFill))
-// 	l.Post(UpdateOp)
+type MockScreen struct {
+	mock.Mock
+}
 
-// 	for i := 0; i < 3; i++ {
-// 		go l.Post(logOp(t, "do green fill", GreenFill))
-// 	}
+func (_ *MockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
+	return nil, nil
+}
 
-// 	l.Post(OperationFunc(func(screen.Texture) {
-// 		testOps = append(testOps, "op 1")
-// 		l.Post(OperationFunc(func(screen.Texture) {
-// 			testOps = append(testOps, "op 2")
-// 		}))
-// 	}))
-// 	l.Post(OperationFunc(func(screen.Texture) {
-// 		testOps = append(testOps, "op 3")
-// 	}))
+func (_ *MockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
+	return nil, nil
+}
 
-// 	l.StopAndWait()
+func (mockScreen *MockScreen) NewTexture(size image.Point) (screen.Texture, error) {
+	args := mockScreen.Called(size)
+	return args.Get(0).(screen.Texture), args.Error(1)
+}
 
-// 	if tr.lastTexture == nil {
-// 		t.Fatal("Texture was not updated")
-// 	}
-// 	mt, ok := tr.lastTexture.(*mockTexture)
-// 	if !ok {
-// 		t.Fatal("Unexpected texture", tr.lastTexture)
-// 	}
-// 	if mt.Colors[0] != color.White {
-// 		t.Error("First color is not white:", mt.Colors)
-// 	}
-// 	if len(mt.Colors) != 2 {
-// 		t.Error("Unexpected size of colors:", mt.Colors)
-// 	}
+type MockTexture struct {
+	mock.Mock
+}
 
-// 	if !reflect.DeepEqual(testOps, []string{"op 1", "op 2", "op 3"}) {
-// 		t.Error("Bad order:", testOps)
-// 	}
-// }
+func (mockTexture *MockTexture) Release() {
+	mockTexture.Called()
+}
 
-// func logOp(t *testing.T, msg string, op OperationFunc) OperationFunc {
-// 	return func(tx screen.Texture) {
-// 		t.Log(msg)
-// 		op(tx)
-// 	}
-// }
+func (mockTexture *MockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+	mockTexture.Called(dp, src, sr)
+}
 
-// type testReceiver struct {
-// 	lastTexture screen.Texture
-// }
+func (mockTexture *MockTexture) Bounds() image.Rectangle {
+	args := mockTexture.Called()
+	return args.Get(0).(image.Rectangle)
+}
 
-// func (tr *testReceiver) Update(t screen.Texture) {
-// 	tr.lastTexture = t
-// }
+func (mockTexture *MockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
+	mockTexture.Called(dr, src, op)
+}
 
-// type mockScreen struct{}
+func (mockTexture *MockTexture) Size() image.Point {
+	args := mockTexture.Called()
+	return args.Get(0).(image.Point)
+}
 
-// func (m mockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
-// 	panic("implement me")
-// }
+type MockReceiver struct {
+	mock.Mock
+}
 
-// func (m mockScreen) NewTexture(size image.Point) (screen.Texture, error) {
-// 	return new(mockTexture), nil
-// }
+func (mockReceiver *MockReceiver) Update(t screen.Texture) {
+	mockReceiver.Called(t)
+}
 
-// func (m mockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
-// 	panic("implement me")
-// }
+func setupTestResources() (
+	screenmock *MockScreen,
+	receivermock *MockReceiver,
+	texturemock *MockTexture,
+	loop Loop) {
 
-// type mockTexture struct {
-// 	Colors []color.Color
-// }
+	screenmock = new(MockScreen)
+	receivermock = new(MockReceiver)
+	texturemock = new(MockTexture)
+	texture := image.Pt(800, 800)
 
-// func (m *mockTexture) Release() {}
+	screenmock.On("NewTexture", texture).Return(texturemock, nil)
+	receivermock.On("Update", texturemock).Return()
+	texturemock.On("Bounds").Return(image.Rectangle{})
 
-// func (m *mockTexture) Size() image.Point { return size }
+	loop = Loop{
+		Receiver: receivermock,
+	}
 
-// func (m *mockTexture) Bounds() image.Rectangle {
-// 	return image.Rectangle{Max: m.Size()}
-// }
+	return
+}
 
-// func (m *mockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {}
-// func (m *mockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
-// 	m.Colors = append(m.Colors, src)
-// }
+func TestLoop_Post_Operation_WasRun(t *testing.T) {
+	screenMock, receiverMock, textureMock, loop := setupTestResources()
+
+	operation := new(MockOperation)
+	operation.On("Do", textureMock).Return(true)
+
+	loop.Start(screenMock)
+	assert.Empty(t, loop.mq.data)
+
+	loop.Post(operation)
+	time.Sleep(1000 * time.Millisecond)
+
+	operation.AssertCalled(t, "Do", textureMock)
+	receiverMock.AssertCalled(t, "Update", textureMock)
+	screenMock.AssertCalled(t, "NewTexture", image.Pt(800, 800))
+
+	assert.Empty(t, loop.mq.data)
+}
+
+func TestLoop_Post_Operation_WasNotRun(t *testing.T) {
+	screenMock, receiverMock, textureMock, loop := setupTestResources()
+
+	operation := new(MockOperation)
+	operation.On("Do", textureMock).Return(false)
+
+	loop.Start(screenMock)
+	assert.Empty(t, loop.mq.data)
+
+	loop.Post(operation)
+	time.Sleep(1000 * time.Millisecond)
+
+	operation.AssertCalled(t, "Do", textureMock)
+	receiverMock.AssertNotCalled(t, "Update", textureMock)
+	screenMock.AssertCalled(t, "NewTexture", image.Pt(800, 800))
+
+	assert.Empty(t, loop.mq.data)
+}
+
+func TestLoop_Post_Three_Operations_WereRun(t *testing.T) {
+	screenMock, receiverMock, textureMock, loop := setupTestResources()
+
+	operations := make([]*MockOperation, 3)
+	for i := range operations {
+		operations[i] = new(MockOperation)
+		operations[i].On("Do", textureMock).Return(true)
+	}
+
+	loop.Start(screenMock)
+	assert.Empty(t, loop.mq.data)
+
+	for i := range operations {
+		loop.Post(operations[i])
+	}
+	time.Sleep(1000 * time.Millisecond)
+
+	for i := range operations {
+		operations[i].AssertCalled(t, "Do", textureMock)
+	}
+	receiverMock.AssertCalled(t, "Update", textureMock)
+	screenMock.AssertCalled(t, "NewTexture", image.Pt(800, 800))
+
+	assert.Empty(t, loop.mq.data)
+}
